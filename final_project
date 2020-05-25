@@ -1,0 +1,130 @@
+from pyjarowinkler import distance
+
+"""
+This program goes through each line of the first file and looks for the line 
+of the second file that has the best match with that using the Jaro Winkler algorithm.
+
+This well-known algorithm indicates the similarity score between two strings.
+
+To improve the chances of recognizing similar strings, a dictionary of keywords 
+to be replaced (on one side and the other) is incorporated into each search attempt.
+
+The result is an output file (file_result.txt) that will contain each line from the 
+first file, the line with the highest degree of match from the second file, 
+and the degree of match. 
+
+The SEPARATOR_CHAR constant is used as the separating character of these 3 fields.
+
+At the end of the execution the results are printed: the number of rows that are matched 
+and the percentages by degree of coincidence (exact, > 95%, > 90%,  > 85% and rest).
+"""
+
+FILE1 = 'file1.txt'
+FILE2 = 'file2.txt'
+SEPARATOR_CHAR = '@'
+
+
+def main():
+    # Source file: for each line it must have the word or string of words that you want to search for.
+    file_1 = FILE1
+    # Destination file: on each line it must have the word or the string of words that you want to match.
+    file_2 = FILE2
+
+    # Key words to be replaced. Prevents the use of abbreviations or other words that may distort the comparison.
+    # Attention: the use of inappropriate words can alter the operation.
+    key_words = {'MMII': 'MIEMBROS INFERIORES', 'MMSS':'MIEMBROS SUPERIORES','MAMO ': 'MAMOGRAFIA ', 'ELECTROENCEFALOGRAFIA': 'ELECTROENCEFALOGRAMA',
+                 'EEG': 'ELECTROENCEFALOGRAMA', 'ELECTROMIOGRAFIA': 'ELECTROMIOGRAMA', 'EMG': 'ELECTROMIOGRAMA', 'DOPPLER COLOR': 'DOPPLER', 'ECODOPPLER': 'DOPPLER', 'ECOGRAFIA DE': 'ECOGRAFIA',
+                 'CENTELLO ': 'CENTELLOGRAMA ', 'SPECT DE': 'SPECT', 'RX ': 'RADIOGRAFIA ', 'RM ': 'RESONANCIA MAGNETICA ', 'TC ': 'TOMOGRAFIA ', 'ANGIOTC': 'ANGIOTOMOGRAFIA',
+                 'ANAT. PATOL.': 'ANATOMIA PATOLOGICA', 'DENSITO ': 'DENSITOMETRIA ', 'CENT.': 'CENTELLOGRAMA',                  ' DE ': ' ', 'ANGIORM': 'ANGIORESONANCIA', 'RNM': 'RESONANCIA MAGNETICA',
+                 'TAC ': 'TOMOGRAFIA COMPUTADA '}
+
+    compare_files(file_1, file_2, key_words)
+
+
+# For each line in file 1, finds the line in file 2 with the highest degree of match.
+# Before searching, exchange keywords to improve the result.
+# At the end, it generates a file with the matches and prints the results
+def compare_files(file_1, file_2, key_words):
+    words_to_replace = key_words
+    with open(file_1, 'r') as file1:
+        file_result = open('file_result.txt', 'wt')
+        counter = 0
+        count_100 = 0
+        count_95 = 0
+        count_90 = 0
+        count_85 = 0
+        count_rest = 0
+        # For each line of file 1, find the line of file 2 that best matches
+        for line_f1 in file1:
+            test_match = ''
+            result = 0.0
+            line1 = line_f1.strip()
+
+            # variable test1 stores file 1 line with keywords replaced
+            test1 = replace_key_words(line1, words_to_replace)
+
+            # for each line of file 1 finds the better match on file 2
+            with open(file_2, 'r') as file2:
+                for line_f2 in file2:
+                    line2 = line_f2.strip()
+
+                    # variable test2 stores file 2 line with keywords replaced
+                    test2 = replace_key_words(line2, words_to_replace)
+
+                    # calc_dist stores the distance between the lines of both files
+                    # if the degree of distance found is greater, it keeps the new line and stores the result
+                    calc_dist = distance.get_jaro_distance(test1, test2)
+                    if calc_dist > result:
+                        result = calc_dist
+                        test_match = line2
+                        test3 = test2
+
+            file_result.write(f"{line1}{SEPARATOR_CHAR}{test_match}{SEPARATOR_CHAR}{result}\n")
+
+            # counts the number of lines matched and classifies the results according to the degree of coincidence
+            counter += 1
+            if result == 1:
+                count_100 += 1
+            elif result >= 0.95:
+                count_95 += 1
+            elif result >= 0.90:
+                count_90 += 1
+            elif result >= 0.85:
+                count_85 += 1
+            else:
+                count_rest += 1
+
+        file_result.close()
+
+    # print results
+    print_results(counter, count_100, count_95, count_90, count_85, count_rest)
+
+
+# Replace the key words on the line using the words indexed in dictionary
+def replace_key_words(line, words):
+    words_dict = words
+    new_line = line
+    for word in words.keys():
+        word_to_replace = word
+        replaced_word = words_dict[word]
+        new_line = new_line.replace(word_to_replace, replaced_word)
+    return new_line
+
+
+# print the final results
+def print_results(counter, count100, count95, count90, count85, count_rest):
+    print(f"{counter} records matched")
+    count_100_per = round((count100 / counter) * 100)
+    print(f"{count_100_per}% of the records had an exact match")
+    count_95_per = round((count95 / counter) * 100)
+    print(f"{count_95_per}% of the records had a match between 95 and 100%.")
+    count_90_per = round((count90 / counter) * 100)
+    print(f"{count_90_per}% of the records had a match between 90 and 95%.")
+    count_85_per = round((count85 / counter) * 100)
+    print(f"{count_85_per}% of the records had a match between 85 and 90%.")
+    count_rest_per = 100 - (count_100_per + count_95_per + count_90_per + count_85_per)
+    print(f"{count_rest_per}% of the records had less than 85% match.")
+
+
+if __name__ == '__main__':
+    main()
